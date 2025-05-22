@@ -1,69 +1,78 @@
-'use strict'; {
-  const imageExts = ['jpg','jpeg','png','gif','webp','bmp'];
-  const videoExts = ['mp4','webm','ogg','mkv','avi','mov','mp3','wav'];
-  const htmlExts  = ['html','htm'];
+'use strict';
 
-  const getExt = name => name.split('.').pop().toLowerCase();
-  const isImage = ext => imageExts.includes(ext);
-  const isVideo = ext => videoExts.includes(ext);
-  const isHTML  = ext => htmlExts.includes(ext);
-  const isMedia = ext => isImage(ext) || isVideo(ext) || isHTML(ext);
+const config = HFS.getPluginConfig?.() || {
+  image: true,
+  video: true,
+  audio: false,
+  other: false,
+  otherExtensions: 'htm|html'
+};
 
-  function bindMediaIcons() {
-    document.querySelectorAll('li.file').forEach(li => {
-      if (li.dataset.bound === '1') return;
+const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
+const videoExts = ['mp4', 'webm', 'ogg', 'mkv', 'avi', 'mov'];
+const audioExts = ['mp3', 'wav', 'flac'];
+const otherExts = (config.otherExtensions || 'htm|html').split('|').map(e => e.trim().toLowerCase());
 
-      const a = li.querySelector('a[href]');
-      const name = a?.textContent?.trim();
-      const href = a?.getAttribute('href');
-      const ext = getExt(name);
-      if (!isMedia(ext)) return;
+const getExt = name => name.split('.').pop().toLowerCase();
+const isImage = ext => imageExts.includes(ext);
+const isVideo = ext => videoExts.includes(ext);
+const isAudio = ext => audioExts.includes(ext);
+const isOther = ext => otherExts.includes(ext);
 
-      let icon = null;
-      if (isImage(ext)) {
-        icon = li.querySelector('img.thumbnail');
-      } else {
-        icon = li.querySelector('span.icon');  // generic for video/audio/HTML
-      }
+function bindMediaIcons() {
+  document.querySelectorAll('li.file').forEach(li => {
+    if (li.dataset.bound === '1') return;
 
-      if (!icon) return;
+    const a = li.querySelector('a[href]');
+    const name = a?.textContent?.trim();
+    const href = a?.getAttribute('href');
+    const ext = getExt(name);
+    let category;
 
-      icon.style.cursor = 'pointer';
-      icon.title = 'Click to preview';
+    if (isImage(ext)) category = 'image';
+    else if (isVideo(ext)) category = 'video';
+    else if (isAudio(ext)) category = 'audio';
+    else if (isOther(ext)) category = 'other';
+    else return;
 
-      icon.addEventListener('click', e => {
-        e.preventDefault();
-        e.stopPropagation();
+    if (!config[category]) return;
 
-        const list = window.HFS?.state?.list || [];
-        const entry = list.find(e => e.n === name);
-        if (!entry) return console.warn('[media-autoshow] Entry not found:', name);
+    const icon = li.querySelector(isImage(ext) ? 'img.thumbnail' : 'span.icon');
+    if (!icon) return;
 
-        if (!entry.uri && href) entry.uri = href;
+    icon.style.cursor = 'pointer';
+    icon.title = 'Click to preview';
 
-        // For media, prepare next/prev navigation list (excluding HTML)
-        const mediaList = list.filter(e => {
-          const x = getExt(e.n);
-          return isImage(x) || isVideo(x);
-        });
-        HFS.state.selected = mediaList.map(e => e.n);
+    icon.addEventListener('click', e => {
+      e.preventDefault();
+      e.stopPropagation();
 
-        setTimeout(() => {
-          if (isHTML(ext)) {
-            console.log('[media-autoshow] Opening HTML file:', entry.uri);
-            window.open(entry.uri, '_blank');
-          } else {
-            console.log('[media-autoshow] Previewing media:', entry.name);
-            HFS.fileShow(entry, { startPlaying: true });
-          }
-        }, 0);
-      }, true);
+      const list = window.HFS?.state?.list || [];
+      const entry = list.find(e => e.n === name);
+      if (!entry) return console.warn('[media-autoshow] Entry not found:', name);
+      if (!entry.uri && href) entry.uri = href;
 
-      li.dataset.bound = '1';
-    });
-  }
+      const mediaList = list.filter(e => {
+        const x = getExt(e.n);
+        return isImage(x) || isVideo(x);
+      });
+      HFS.state.selected = mediaList.map(e => e.n);
 
-  bindMediaIcons();
-  const observer = new MutationObserver(() => bindMediaIcons());
-  observer.observe(document.body, { childList: true, subtree: true });
+      setTimeout(() => {
+        if (category === 'other') {
+          console.log('[media-autoshow] Opening other file:', entry.uri);
+          window.open(entry.uri, '_blank');
+        } else {
+          console.log('[media-autoshow] Previewing media:', entry.name);
+          HFS.fileShow(entry, { startPlaying: true });
+        }
+      }, 0);
+    }, true);
+
+    li.dataset.bound = '1';
+  });
 }
+
+bindMediaIcons();
+const observer = new MutationObserver(() => bindMediaIcons());
+observer.observe(document.body, { childList: true, subtree: true });
