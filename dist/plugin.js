@@ -1,4 +1,4 @@
-exports.version = 1.2;
+exports.version = 1.4;
 exports.apiRequired = 8.87;
 exports.description = "Auto-show media by clicking icons, and click the file name to open the file menu.";
 exports.repo = "Hug3O/Instant-show";
